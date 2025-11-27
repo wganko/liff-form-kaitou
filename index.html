@@ -27,116 +27,133 @@
     #msg {
       font-size: 14px;
       color: #555;
-      margin-bottom: 20px;
+      margin-bottom: 8px;
       white-space: pre-line; /* \n を改行として表示 */
-    }
-    #link_btn {
-      display: none; /* 最初は非表示 */
-      background-color: #06C755; /* LINEグリーン */
-      color: #ffffff;
-      text-decoration: none;
-      font-size: 18px;
-      font-weight: bold;
-      padding: 14px 20px;
-      border-radius: 8px;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
-      width: 100%;
-      max-width: 280px;
-      margin: 0 auto;
-      box-sizing: border-box;
     }
   </style>
 </head>
 <body>
   <div id="container">
-    <p id="msg">初期化中です…</p>
-    <a id="link_btn" href="#" target="_blank">回答フォームを開く</a>
+    <p id="msg">少々お待ちください…</p>
   </div>
 
   <script>
-    // ===== 設定値ここから =====
-    // LIFF ID（LINE Developers の画面に表示されているもの）
+    // ======================================
+    //  定数定義（ここだけ変えればよい）
+    // ======================================
+
+    // ★LIFF ID（LINE Developers の LIFF設定画面に表示）
     const MY_LIFF_ID = "2008575726-6QPdOoaW";
 
-    // 元の Google フォーム URL
+    // ★Googleフォームの「viewform」までのURL（? より前だけ）
     const FORM_URL =
       "https://docs.google.com/forms/d/e/1FAIpQLSee_-u4FSOTU6g_ObpJj7ijS51dWDLL0I0zCBmzuRM6rucO4Q/viewform";
 
-    // userId を差し込む「事前入力用」のエントリID
-    // （Google フォームの prefill で調べた entry.xxx）
-    const ENTRY_ID = "entry.521129424";
-    // ===== 設定値ここまで =====
+    // ★3つ目の質問（User_ID用）の entry 番号（事前入力リンクで取得した値）
+    //   例：entry.123456789 のような形
+    const ENTRY_ID = "entry.521129424";  // ←取得した entry 番号に書き換え
 
-    // メッセージ表示用のヘルパー関数
+    // メッセージ文言（必要ならここも編集）
+    const MSG_INIT        = "LIFF を初期化しています…";
+    const MSG_CHECK_LOGIN = "ログイン状態を確認しています…";
+    const MSG_GET_PROFILE = "ユーザー情報を取得しています…";
+    const MSG_BUILD_URL   = "回答フォームを開いています…";
+    const MSG_NEED_LINE   = "このページは\nLINE のトークから\n開いてください。";
+    const MSG_ERROR_PREFIX = "エラーが発生しました：\n";
+
+    // ======================================
+    //  画面メッセージ表示用ヘルパー
+    // ======================================
     function setMsg(text) {
       const el = document.getElementById("msg");
       if (el) el.innerText = text;
     }
 
+    // ======================================
+    //  メイン処理
+    // ======================================
     async function main() {
       try {
-        // --- 1. LIFF SDK が読み込まれているか確認 ---
+        // ----------------------------------
+        // 1. LINEアプリ内から開かれているか確認
+        //    （外部ブラウザで開かれた場合は案内だけ表示）
+        // ----------------------------------
         if (!window.liff) {
-          setMsg("エラー：LIFF SDK が読み込まれていません。");
+          // LIFF SDK 自体が読み込めていない場合
+          setMsg(MSG_ERROR_PREFIX + "LIFF SDK が読み込めませんでした。");
           return;
         }
 
-        // --- 2. LIFF 初期化 ---
-        setMsg("Step1: LIFF を初期化しています…");
+        if (!liff.isInClient()) {
+          // LINE アプリの外（Chrome等）から開かれた場合
+          setMsg(MSG_NEED_LINE);
+          return;
+        }
+
+        // ----------------------------------
+        // 2. LIFF 初期化
+        // ----------------------------------
+        setMsg(MSG_INIT);
 
         await liff.init({
           liffId: MY_LIFF_ID,
-          // 外部ブラウザから開かれた場合でも LINE ログインに飛ばせる設定
+          // 外部ブラウザ対策も一応ON（LINEアプリ内なら特に悪影響なし）
           withLoginOnExternalBrowser: true
         });
 
-        // --- 3. ログイン状態確認 ---
-        setMsg("Step2: ログイン状態を確認しています…");
+        // ----------------------------------
+        // 3. ログイン状態確認 → 未ログインならログインへ飛ばす
+        // ----------------------------------
+        setMsg(MSG_CHECK_LOGIN);
 
         if (!liff.isLoggedIn()) {
-          setMsg("LINE ログイン画面へ移動します…");
+          // ログインしていない場合は LINE ログイン画面へ
           liff.login();
-          return; // ログイン後にページが再読み込みされる
+          return;  // ログイン後にこのページが再読み込みされる
         }
 
-        // --- 4. プロフィール取得 ---
-        setMsg("Step3: LINE のユーザー情報を取得しています…");
+        // ----------------------------------
+        // 4. プロフィール取得（ここで userId を取る）
+        // ----------------------------------
+        setMsg(MSG_GET_PROFILE);
 
         const profile = await liff.getProfile();
-        const userId = profile.userId; // この userId を Google フォームに渡す
+        const userId = profile.userId;  // ★Googleフォームに渡すID
 
-        // --- 5. Google フォームの URL を組み立て ---
-        setMsg("Step4: 回答フォームのリンクを作成しています…");
+        // ----------------------------------
+        // 5. Google フォームのURLを組み立てて即移動
+        // ----------------------------------
+        setMsg(MSG_BUILD_URL);
 
-        // 例: https://.../viewform?usp=pp_url&entry.1936812235=<userId>
+        // 例:
+        // https://.../viewform?usp=pp_url&entry.XXXXXX=<userId>
         const finalUrl =
           `${FORM_URL}?usp=pp_url&${ENTRY_ID}=${encodeURIComponent(userId)}`;
 
-        const link = document.getElementById("link_btn");
-        link.href = finalUrl;
-        link.style.display = "block";
-
-        setMsg(
-          "準備ができました。\n「回答フォームを開く」をタップして\nGoogle フォームに回答してください。"
-        );
+        // ★ボタンを出さず、すぐフォームに遷移する
+        //   LINEアプリ内ブラウザのタブがそのまま Googleフォームに切り替わる
+        location.href = finalUrl;
 
       } catch (err) {
-        // --- エラー処理 ---
+        // ======================================
+        //  エラー処理（日本語メッセージ）
+        // ======================================
         let detail = "";
-        if (err && err.message) {
-          detail = err.message;
-        } else {
-          try {
+        try {
+          if (err && err.message) {
+            detail = err.message;
+          } else {
             detail = JSON.stringify(err);
-          } catch (e) {
-            detail = String(err);
           }
+        } catch (e) {
+          detail = String(err);
         }
-        setMsg("エラーが発生しました：\n" + detail);
+
+        setMsg(MSG_ERROR_PREFIX + detail);
       }
     }
 
-    // ページ読み込み完了後に実行
+    // ページ読み込み完了後にメイン処理を実行
     window.addEventListener("load", main);
   </script>
 </body>
