@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>LINE 回答フォーム起動</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- LIFF SDK 読み込み -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   sans-serif;
+      text-align: center;
+      padding: 40px 20px;
+      background-color: #f5f5f5;
+    }
+    #container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px 16px 32px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    #msg {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 20px;
+      white-space: pre-line; /* \n を改行として表示 */
+    }
+    #link_btn {
+      display: none; /* 最初は非表示 */
+      background-color: #06C755; /* LINEグリーン */
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 18px;
+      font-weight: bold;
+      padding: 14px 20px;
+      border-radius: 8px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+      width: 100%;
+      max-width: 280px;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <p id="msg">初期化中です…</p>
+    <a id="link_btn" href="#" target="_blank">回答フォームを開く</a>
+  </div>
+
+  <script>
+    // ===== 設定値ここから =====
+    // LIFF ID（LINE Developers の画面に表示されているもの）
+    const MY_LIFF_ID = "2008575726-6QPdOoaW";
+
+    // 元の Google フォーム URL
+    const FORM_URL =
+      "https://docs.google.com/forms/d/e/1FAIpQLSee_-u4FSOTU6g_ObpJj7ijS51dWDLL0I0zCBmzuRM6rucO4Q/viewform";
+
+    // userId を差し込む「事前入力用」のエントリID
+    // （Google フォームの prefill で調べた entry.xxx）
+    const ENTRY_ID = "entry.1936812235";
+    // ===== 設定値ここまで =====
+
+    // メッセージ表示用のヘルパー関数
+    function setMsg(text) {
+      const el = document.getElementById("msg");
+      if (el) el.innerText = text;
+    }
+
+    async function main() {
+      try {
+        // --- 1. LIFF SDK が読み込まれているか確認 ---
+        if (!window.liff) {
+          setMsg("エラー：LIFF SDK が読み込まれていません。");
+          return;
+        }
+
+        // --- 2. LIFF 初期化 ---
+        setMsg("Step1: LIFF を初期化しています…");
+
+        await liff.init({
+          liffId: MY_LIFF_ID,
+          // 外部ブラウザから開かれた場合でも LINE ログインに飛ばせる設定
+          withLoginOnExternalBrowser: true
+        });
+
+        // --- 3. ログイン状態確認 ---
+        setMsg("Step2: ログイン状態を確認しています…");
+
+        if (!liff.isLoggedIn()) {
+          setMsg("LINE ログイン画面へ移動します…");
+          liff.login();
+          return; // ログイン後にページが再読み込みされる
+        }
+
+        // --- 4. プロフィール取得 ---
+        setMsg("Step3: LINE のユーザー情報を取得しています…");
+
+        const profile = await liff.getProfile();
+        const userId = profile.userId; // この userId を Google フォームに渡す
+
+        // --- 5. Google フォームの URL を組み立て ---
+        setMsg("Step4: 回答フォームのリンクを作成しています…");
+
+        // 例: https://.../viewform?usp=pp_url&entry.1936812235=<userId>
+        const finalUrl =
+          `${FORM_URL}?usp=pp_url&${ENTRY_ID}=${encodeURIComponent(userId)}`;
+
+        const link = document.getElementById("link_btn");
+        link.href = finalUrl;
+        link.style.display = "block";
+
+        setMsg(
+          "準備ができました。\n「回答フォームを開く」をタップして\nGoogle フォームに回答してください。"
+        );
+
+      } catch (err) {
+        // --- エラー処理 ---
+        let detail = "";
+        if (err && err.message) {
+          detail = err.message;
+        } else {
+          try {
+            detail = JSON.stringify(err);
+          } catch (e) {
+            detail = String(err);
+          }
+        }
+        setMsg("エラーが発生しました：\n" + detail);
+      }
+    }
+
+    // ページ読み込み完了後に実行
+    window.addEventListener("load", main);
+  </script>
+</body>
+</html>
