@@ -2,18 +2,15 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <title>LINE 回答フォーム起動</title>
+  <title>全役員会の出欠連絡</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- LIFF SDK 読み込み -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
   <style>
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-                   sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       text-align: center;
-      padding: 40px 20px;
+      padding: 20px;
       background-color: #f5f5f5;
     }
     #container {
@@ -24,139 +21,239 @@
       padding: 24px 16px 32px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
+    h1 {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    .info {
+      font-size: 13px;
+      color: #666;
+      text-align: left;
+      background: #f9f9f9;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+    .info a {
+      color: #06C755;
+    }
+    .deadline {
+      color: #e53935;
+      font-weight: bold;
+    }
     #msg {
       font-size: 14px;
       color: #555;
       margin-bottom: 8px;
-      white-space: pre-line; /* \n を改行として表示 */
+      white-space: pre-line;
+    }
+    #formArea {
+      display: none;
+      text-align: left;
+      padding: 16px 0;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label.title {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    .required {
+      color: #e53935;
+      margin-left: 4px;
+    }
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      padding: 14px;
+      margin-bottom: 8px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .radio-group input[type="radio"] {
+      width: 20px;
+      height: 20px;
+      margin-right: 12px;
+    }
+    #submitBtn {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #06C755;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+    #submitBtn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    #userName {
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 16px;
+      text-align: center;
+      padding: 10px;
+      background: #e8f5e9;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
   <div id="container">
+    <h1>全役員会の出欠連絡</h1>
+    
+    <div class="info">
+      <strong>日時:</strong> 令和7年12月14日（日）15:30～<br>
+      <strong>場所:</strong> 穴吹学園ホール<br>
+      （せとうち観光専門職短期大学）<br>
+      （高松市屋島西町2366-1）<br>
+      <a href="https://web.seto.ac.jp/place/" target="_blank">https://web.seto.ac.jp/place/</a><br><br>
+      <span class="deadline">令和7年11月30日までにご回答をお願いします。</span>
+    </div>
+
     <p id="msg">少々お待ちください…</p>
+
+    <div id="formArea">
+      <p id="userName"></p>
+
+      <div class="form-group">
+        <label class="title">全役員会出欠について<span class="required">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="attendance" value="出席"> 出席</label>
+          <label><input type="radio" name="attendance" value="欠席"> 欠席</label>
+        </div>
+      </div>
+
+      <button id="submitBtn">回答を送信</button>
+    </div>
   </div>
 
   <script>
     // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    // ┃  ★この下だけ書き換えてください (設定エリア)       ┃
+    // ┃  ★設定エリア（ここを編集）                      ┃
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-    // ★Googleフォームの「viewform」までのURL（? より前だけ）
-    const FORM_URL =
-      "https://docs.google.com/forms/d/e/1FAIpQLSee_-u4FSOTU6g_ObpJj7ijS51dWDLL0I0zCBmzuRM6rucO4Q/viewform";
 
-    // ★User_ID用の entry 番号（事前入力リンクで取得した値）
-    //   例：entry.123456789 のような形
-    const ENTRY_ID = "entry.521129424";  // ←取得した entry 番号に書き換え
-    
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ✋ ！！これより下は触らないでください！！ ✋
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ★LIFF ID（LINE Developers の LIFF設定画面に表示）
+    // ★LIFF ID
     const MY_LIFF_ID = "2008582229-JQxY2yD4";
-   
-    // メッセージ文言（必要ならここも編集）
-    const MSG_INIT        = "LIFF を初期化しています…";
-    const MSG_CHECK_LOGIN = "ログイン状態を確認しています…";
-    const MSG_GET_PROFILE = "ユーザー情報を取得しています…";
-    const MSG_BUILD_URL   = "回答フォームを開いています…";
-    const MSG_NEED_LINE   = "このページは\nLINE のトークから\n開いてください。";
-    const MSG_ERROR_PREFIX = "エラーが発生しました：\n";
 
-    // ======================================
-    //  画面メッセージ表示用ヘルパー
-    // ======================================
+    // ★GASのWebアプリURL（デプロイ後のURLに差し替え）
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbx3Mc02C5gCnTAaJrx7jib37E_nHqHy2bqEb4OXfT6pShhhFNHFKBv-5e2EYr956MYB/exec";
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    let userProfile = null;
+
     function setMsg(text) {
       const el = document.getElementById("msg");
       if (el) el.innerText = text;
     }
 
-    // ======================================
-    //  メイン処理
-    // ======================================
     async function main() {
       try {
-        // ----------------------------------
-        // 1. LINEアプリ内から開かれているか確認
-        //    （外部ブラウザで開かれた場合は案内だけ表示）
-        // ----------------------------------
         if (!window.liff) {
-          // LIFF SDK 自体が読み込めていない場合
-          setMsg(MSG_ERROR_PREFIX + "LIFF SDK が読み込めませんでした。");
+          setMsg("エラー: LIFF SDK が読み込めませんでした。");
           return;
         }
 
         if (!liff.isInClient()) {
-          // LINE アプリの外（Chrome等）から開かれた場合
-          setMsg(MSG_NEED_LINE);
+          setMsg("このページは\nLINE のトークから\n開いてください。");
           return;
         }
 
-        // ----------------------------------
-        // 2. LIFF 初期化
-        // ----------------------------------
-        setMsg(MSG_INIT);
-
+        setMsg("LIFF を初期化しています…");
         await liff.init({
           liffId: MY_LIFF_ID,
-          // 外部ブラウザ対策も一応ON（LINEアプリ内なら特に悪影響なし）
           withLoginOnExternalBrowser: true
         });
 
-        // ----------------------------------
-        // 3. ログイン状態確認 → 未ログインならログインへ飛ばす
-        // ----------------------------------
-        setMsg(MSG_CHECK_LOGIN);
-
+        setMsg("ログイン状態を確認しています…");
         if (!liff.isLoggedIn()) {
-          // ログインしていない場合は LINE ログイン画面へ
           liff.login();
-          return;  // ログイン後にこのページが再読み込みされる
+          return;
         }
 
-        // ----------------------------------
-        // 4. プロフィール取得（ここで userId を取る）
-        // ----------------------------------
-        setMsg(MSG_GET_PROFILE);
+        setMsg("ユーザー情報を取得しています…");
+        userProfile = await liff.getProfile();
 
-        const profile = await liff.getProfile();
-        const userId = profile.userId;  // ★Googleフォームに渡すID
-
-        // ----------------------------------
-        // 5. Google フォームのURLを組み立てて即移動
-        // ----------------------------------
-        setMsg(MSG_BUILD_URL);
-
-        // 例:
-        // https://.../viewform?usp=pp_url&entry.XXXXXX=<userId>
-        const finalUrl =
-          `${FORM_URL}?usp=pp_url&${ENTRY_ID}=${encodeURIComponent(userId)}`;
-
-        // ★ボタンを出さず、すぐフォームに遷移する
-        //   LINEアプリ内ブラウザのタブがそのまま Googleフォームに切り替わる
-        location.href = finalUrl;
+        // フォームを表示
+        document.getElementById("msg").style.display = "none";
+        document.getElementById("formArea").style.display = "block";
+        document.getElementById("userName").innerText = 
+          `回答者: ${userProfile.displayName}`;
 
       } catch (err) {
-        // ======================================
-        //  エラー処理（日本語メッセージ）
-        // ======================================
-        let detail = "";
-        try {
-          if (err && err.message) {
-            detail = err.message;
-          } else {
-            detail = JSON.stringify(err);
-          }
-        } catch (e) {
-          detail = String(err);
-        }
-
-        setMsg(MSG_ERROR_PREFIX + detail);
+        setMsg("エラーが発生しました：\n" + (err.message || err));
       }
     }
 
-    // ページ読み込み完了後にメイン処理を実行
+    async function submitForm() {
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      btn.innerText = "送信中…";
+
+      try {
+        // 出欠の値を取得
+        const attendance = document.querySelector('input[name="attendance"]:checked');
+
+        // バリデーション
+        if (!attendance) {
+          alert("出欠を選択してください");
+          btn.disabled = false;
+          btn.innerText = "回答を送信";
+          return;
+        }
+
+        // 送信データ
+        const formData = {
+          userId: userProfile.userId,
+          displayName: userProfile.displayName,
+          attendance: attendance.value
+        };
+
+        // ★1. GASにデータ送信（Googleフォームに投稿）
+        await fetch(GAS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData)
+        });
+
+        // ★2. トーク画面に回答内容を投稿（本人確認用）
+        const confirmMessage = 
+`【出欠回答完了】
+━━━━━━━━━━
+全役員会
+回答者：${formData.displayName}
+出欠：${formData.attendance}
+━━━━━━━━━━
+※この内容で回答済みです`;
+
+        await liff.sendMessages([
+          { type: "text", text: confirmMessage }
+        ]);
+
+        // ★3. LIFFを閉じる
+        liff.closeWindow();
+
+      } catch (err) {
+        alert("送信に失敗しました: " + (err.message || err));
+        btn.disabled = false;
+        btn.innerText = "回答を送信";
+      }
+    }
+
     window.addEventListener("load", main);
+    document.getElementById("submitBtn").addEventListener("click", submitForm);
   </script>
 </body>
 </html>
