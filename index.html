@@ -224,6 +224,7 @@
         // ★1. GASにデータ送信（Googleフォームに投稿）
         await fetch(GAS_URL, {
           method: "POST",
+          mode: "no-cors",  // ←この行を追加
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData)
         });
